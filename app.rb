@@ -6,6 +6,10 @@ require 'anemone'
 require 'benchmark'
 require 'pony'
 
+DOMAIN_REGEX = /\Ahttp(s)?:\/\/[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,5}(([0-9]{1,5})?\/.*)?\z/i
+EMAIL_REGEX  = /\A[A-Za-z0-9\-\+\_\.]+\@(\.[A-Za-z0-9\-\+\_]+)*(([a-z0-9]([-a-z0-9]*[a-z0-9])?\.){1,4})([a-z]{2,15})\z/i
+PLAIN_TEXT   = {'Content-Type' => 'text/plain'}
+
 configure do
   # http://recipes.sinatrarb.com/p/middleware/rack_commonlogger
   file = File.new("#{settings.root}/log/#{settings.environment}.log", 'a+')
@@ -42,11 +46,11 @@ post '/' do
   begin
     # authorized user?
     if params[:token].blank? || params[:token] != ENV['APP_TOKEN']
-      halt 403, {'Content-Type' => 'text/plain'}, 'unauthorized'
+      halt 403, PLAIN_TEXT, 'unauthorized'
     end
     # parameters valid?
-    if params[:url].blank?
-      halt 422, {'Content-Type' => 'text/plain'}, 'unvalid parameters: url missing'
+    if params[:url].blank? || !params[:url].match(DOMAIN_REGEX)
+      halt 422, PLAIN_TEXT, 'url missing or unvalid'
     end
     
     o = {delay: 1, verbose: false, skip_query_strings: true}
@@ -69,12 +73,16 @@ post '/' do
     message =  %[Crawled #{c.to_s} pages on #{params[:url]} for #{a.size} broken-links in #{(t.round(0))}s\n\n#{text}\n]
     
     # send a mail with the list of 404 pages and the benchmark time
-    send_mail(params[:email],ENV['FROM'],"#{ENV['SUBJECT']} #{params[:url]}", message) unless params[:email].blank?
-    halt 200, {'Content-Type' => 'text/plain'}, message
+    if !params[:email].blank? && params[:email].match(EMAIL_REGEX)
+      send_mail(params[:email],ENV['FROM'],"#{ENV['SUBJECT']} #{params[:url]}", message)
+    end
+    
+    # output result to caller
+    halt 200, PLAIN_TEXT, message
     
   rescue Exception => e
     logger.warn "[broken-link-checker] Rescue: #{e.message}"
-    halt 400, {'Content-Type' => 'text/plain'}, e.message
+    halt 400, PLAIN_TEXT, e.message
   end
 end
 
