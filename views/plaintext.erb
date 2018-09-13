@@ -1,0 +1,7 @@
+Broken Link Checker Report for <%= url %>
+
+Crawled <%= pages_counter %> pages on <%= url %> and found <%= array.size %> broken-links in <%= time.round(0) %>s
+
+<% array.each do |a| %>
+<%= "[#{a[:code]}] #{a[:url]}, Referer: #{a[:referer]} \n" %>
+<% end if array.size > 0 %>

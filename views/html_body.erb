@@ -1,0 +1,31 @@
+<html>
+  <head>
+    <title>Broken Link Checker Report for <%= url %></title>
+  </head>
+  <body>
+    <p>
+      Crawled <%= pages_counter %> pages on <a href="<%= url %>"><%= url %></a> and found <%= array.size %> broken-links in <%= time.round(0) %>s
+    </p>
+    <% if array.size > 0 %>
+      <table>
+        <thead>
+          <tr>
+            <th>Status</th>
+            <th>Broken Link</th>
+            <th>Page containing the link</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% array.each do |a| %>
+            <tr>
+              <td><%= a[:code] %></td>
+              <td><%= a[:url] %></td>
+              <td><%= a[:referer] %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% end %>
+    <p>To ensure a good SEO ranking for your page, you should fix these broken links!</p>
+  </body>
+</html>

@@ -23,21 +23,22 @@ class String
   end
 end
 
-def send_mail(to,from,subject,message)
+def send_mail(to,from,subject,body,html_body)
   Pony.mail(
-    :to      => to,
-    :from    => from,
-    :subject => subject,
-    :body    => message,
-    :via => :smtp,
-    :via_options => {
-      :address              => ENV['MAILSERVER'],
-      :port                 => ENV['PORT'],
-      :enable_starttls_auto => true,
-      :user_name            => ENV['MAILUSER'],
-      :password             => ENV['MAILPDW'],
-      :authentication       => :plain,
-      :domain               => ENV['DOMAIN']
+    to:        to,
+    from:      from,
+    subject:   subject,
+    body:      body,
+    html_body: html_body,
+    via: :smtp,
+    via_options: {
+      address:              ENV['MAILSERVER'],
+      port:                 ENV['PORT'],
+      enable_starttls_auto: true,
+      user_name:            ENV['MAILUSER'],
+      password:             ENV['MAILPDW'],
+      authentication:       :plain,
+      domain:               ENV['DOMAIN']
     }
   )
 end
@@ -69,20 +70,23 @@ post '/' do
     end
     
     # json and xml output possible
-    text = a.collect {|p| "[#{p[:code]}] #{p[:url]} - Referrer: #{p[:referer]}"}.join("\n")
-    message =  %[Crawled #{c.to_s} pages on #{params[:url]} for #{a.size} broken-links in #{(t.round(0))}s\n\n#{text}\n]
+    html_body = erb :html_body, locals: { array: a, pages_counter: c, url: params[:url], time: t }
+    plaintext = erb :plaintext, locals: { array: a, pages_counter: c, url: params[:url], time: t }
     
-    # send a mail with the list of 404 pages and the benchmark time
+    # text      = a.collect {|p| "[#{p[:code]}] #{p[:url]} - Referer: #{p[:referer]}"}.join("\n")
+    # body      =  %[Crawled #{c.to_s} pages on #{params[:url]} and found #{a.size} broken-links in #{(t.round(0))}s\n\n#{text}\n]
+    
+    # send a mail with the list of 404 pages
     if !params[:email].blank? && params[:email].match(EMAIL_REGEX)
-      send_mail(params[:email],ENV['FROM'],"#{ENV['SUBJECT']} #{params[:url]}", message)
+      send_mail(params[:email],ENV['FROM'],"#{ENV['SUBJECT']} #{params[:url]}", plaintext, html_body)
     end
     
     # output result to caller
-    halt 200, PLAIN_TEXT, message
+    halt 200, PLAIN_TEXT, plaintext
     
-  rescue Exception => e
-    logger.warn "[broken-link-checker] Rescue: #{e.message}"
-    halt 400, PLAIN_TEXT, e.message
+    #rescue Exception => e
+    #logger.warn "[broken-link-checker] Rescue: #{e.message}"
+    #halt 400, PLAIN_TEXT, e.message
   end
 end
 

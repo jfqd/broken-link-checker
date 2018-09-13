@@ -1,6 +1,5 @@
-source 'https://rubygems.org' do
-  gem 'sinatra'
-  gem 'dotenv'
-  gem 'anemone'
-  gem "pony"
-end
+source 'https://rubygems.org'
+gem 'sinatra'
+gem 'dotenv'
+gem 'anemone'
+gem "pony"
