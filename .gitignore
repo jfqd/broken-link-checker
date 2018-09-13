@@ -1,0 +1,10 @@
+.DS_Store
+Capfile
+config/deploy.rb
+Gemfile.lock
+.rvmrc
+.env*
+doc
+tmp
+.bundle
+.rsync_cache
