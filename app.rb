@@ -60,6 +60,7 @@ post '/' do
     
     t = Benchmark.realtime do
       Anemone.crawl(params[:url],o) do |anemone|
+        anemone.skip_links_like /#{params[:skip_links]}/ if !params[:skip_links].blank?
         anemone.on_every_page do |page|
           if !page.code.nil? and page.code == 404 and !page.url.to_s.include?('%23')
             a << {code: page.code, url: page.url, referer: page.referer}
