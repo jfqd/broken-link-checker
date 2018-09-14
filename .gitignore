@@ -1,6 +1,7 @@
 .DS_Store
 Capfile
 config/deploy.rb
+config/crontab
 Gemfile.lock
 .rvmrc
 .env*
