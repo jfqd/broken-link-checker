@@ -8,6 +8,7 @@ require 'pony'
 
 DOMAIN_REGEX = /\Ahttp(s)?:\/\/[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,5}(([0-9]{1,5})?\/.*)?\z/i
 EMAIL_REGEX  = /\A[A-Za-z0-9\-\+\_\.]+\@(\.[A-Za-z0-9\-\+\_]+)*(([a-z0-9]([-a-z0-9]*[a-z0-9])?\.){1,4})([a-z]{2,15})\z/i
+SKIP_REGEX   = /^[(A-Za-z0-9\\\-\(\)\|]*$/
 PLAIN_TEXT   = {'Content-Type' => 'text/plain'}
 
 configure do
@@ -54,13 +55,13 @@ post '/' do
       halt 422, PLAIN_TEXT, 'url missing or unvalid'
     end
     
-    o = {delay: 1, verbose: false, skip_query_strings: true}
-    a = []
-    c = 0
+    o = {delay: 1, verbose: false, skip_query_strings: true, discard_page_bodies: true}
+    l = params[:skip].blank? || !params[:skip].match(SKIP_REGEX)
+    a = []; c = 0;
     
     t = Benchmark.realtime do
       Anemone.crawl(params[:url],o) do |anemone|
-        anemone.skip_links_like /#{params[:skip_links]}/ if !params[:skip_links].blank?
+        anemone.skip_links_like /#{l}/ unless l.nil?
         anemone.on_every_page do |page|
           if !page.code.nil? and page.code == 404 and !page.url.to_s.include?('%23')
             a << {code: page.code, url: page.url, referer: page.referer}
@@ -74,9 +75,6 @@ post '/' do
     html_body = erb :html_body, locals: { array: a, pages_counter: c, url: params[:url], time: t }
     plaintext = erb :plaintext, locals: { array: a, pages_counter: c, url: params[:url], time: t }
     
-    # text      = a.collect {|p| "[#{p[:code]}] #{p[:url]} - Referer: #{p[:referer]}"}.join("\n")
-    # body      =  %[Crawled #{c.to_s} pages on #{params[:url]} and found #{a.size} broken-links in #{(t.round(0))}s\n\n#{text}\n]
-    
     # send a mail with the list of 404 pages
     if !params[:email].blank? && params[:email].match(EMAIL_REGEX)
       send_mail(params[:email],ENV['FROM'],"#{ENV['SUBJECT']} #{params[:url]}", plaintext, html_body)
@@ -85,9 +83,9 @@ post '/' do
     # output result to caller
     halt 200, PLAIN_TEXT, plaintext
     
-    #rescue Exception => e
-    #logger.warn "[broken-link-checker] Rescue: #{e.message}"
-    #halt 400, PLAIN_TEXT, e.message
+  rescue Exception => e
+    logger.warn "[broken-link-checker] Rescue: #{e.message}"
+    halt 400, PLAIN_TEXT, e.message
   end
 end
 
