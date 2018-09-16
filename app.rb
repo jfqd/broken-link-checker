@@ -27,6 +27,37 @@ configure do
   end
 end
 
+post '/' do
+  begin
+    # authorized user?
+    if params[:token].blank? || params[:token] != ENV['APP_TOKEN']
+      halt 403, PLAIN_TEXT, "unauthorized\n"
+    end
+    # url parameter valid?
+    if params[:url].blank? || !params[:url].match(DOMAIN_REGEX)
+      halt 422, PLAIN_TEXT, "url missing or unvalid\n"
+    end
+    
+    PageCrawler.perform_async(
+      params[:url],
+      validate(params[:email],EMAIL_REGEX),
+      validate(params[:bcc],  EMAIL_REGEX),
+      validate(params[:skip], SKIP_REGEX)
+    )
+    
+    # output result to caller
+    halt 200, PLAIN_TEXT, "job was queued\n"
+    
+  rescue Exception => e
+    logger.warn "[broken-link-checker] Rescue: #{e.message}"
+    halt 400, PLAIN_TEXT, e.message
+  end
+end
+
+get '/ping' do
+  'pong'
+end
+
 class String
   def blank?
     self == nil || self == ''
@@ -37,6 +68,10 @@ class NilClass
   def blank?
     self == nil
   end
+end
+
+def validate(param,regex)
+  !param.blank? && param.match(regex) ? param : nil
 end
 
 class PageCrawler
@@ -88,34 +123,4 @@ class PageCrawler
       }
     )
   end
-end
-
-post '/' do
-  begin
-    # authorized user?
-    if params[:token].blank? || params[:token] != ENV['APP_TOKEN']
-      halt 403, PLAIN_TEXT, 'unauthorized'
-    end
-    # url parameter valid?
-    if params[:url].blank? || !params[:url].match(DOMAIN_REGEX)
-      halt 422, PLAIN_TEXT, 'url missing or unvalid'
-    end
-    
-    email = (!params[:email].blank? && params[:email].match(EMAIL_REGEX) ? params[:email] : nil)
-    bcc   = (!params[:bcc].blank?   && params[:bcc].match(EMAIL_REGEX)   ? params[:bcc]   : nil)
-    skip  = (!params[:skip].blank?  && params[:skip].match(SKIP_REGEX)   ? params[:skip]  : nil)
-    
-    PageCrawler.perform_async(params[:url], email, bcc, skip)
-    
-    # output result to caller
-    halt 200, PLAIN_TEXT, "job was queued"
-    
-  rescue Exception => e
-    logger.warn "[broken-link-checker] Rescue: #{e.message}"
-    halt 400, PLAIN_TEXT, e.message
-  end
-end
-
-get '/ping' do
-  'pong'
 end
