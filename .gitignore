@@ -5,6 +5,7 @@ config/crontab
 Gemfile.lock
 .rvmrc
 .env*
+log/*.log
 doc
 tmp
 .bundle

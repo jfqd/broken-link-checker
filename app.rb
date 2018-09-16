@@ -5,6 +5,7 @@ require 'dotenv/load'
 require 'anemone'
 require 'benchmark'
 require 'pony'
+require 'sidekiq'
 
 DOMAIN_REGEX = /\Ahttp(s)?:\/\/[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,5}(([0-9]{1,5})?\/.*)?\z/i
 EMAIL_REGEX  = /\A[A-Za-z0-9\-\+\_\.]+\@(\.[A-Za-z0-9\-\+\_]+)*(([a-z0-9]([-a-z0-9]*[a-z0-9])?\.){1,4})([a-z]{2,15})\z/i
@@ -16,6 +17,14 @@ configure do
   file = File.new("#{settings.root}/log/#{settings.environment}.log", 'a+')
   file.sync = true
   use Rack::CommonLogger, file
+  
+  Sidekiq.configure_server do |config|
+    config.redis = { url: "redis://#{ENV['REDIS_SERVER']}:#{ENV['REDIS_PORT']}/#{ENV['REDIS_DATABASE']}" }
+  end
+
+  Sidekiq.configure_client do |config|
+    config.redis = { url: "redis://#{ENV['REDIS_SERVER']}:#{ENV['REDIS_PORT']}/#{ENV['REDIS_DATABASE']}" }
+  end
 end
 
 class String
@@ -24,44 +33,25 @@ class String
   end
 end
 
-def send_mail(to,from,subject,body,html_body)
-  Pony.mail(
-    to:        to,
-    from:      from,
-    subject:   subject,
-    body:      body,
-    html_body: html_body,
-    via: :smtp,
-    via_options: {
-      address:              ENV['MAILSERVER'],
-      port:                 ENV['PORT'],
-      enable_starttls_auto: true,
-      user_name:            ENV['MAILUSER'],
-      password:             ENV['MAILPDW'],
-      authentication:       :plain,
-      domain:               ENV['DOMAIN']
-    }
-  )
+class NilClass
+  def blank?
+    self == nil
+  end
 end
 
-post '/' do
-  begin
-    # authorized user?
-    if params[:token].blank? || params[:token] != ENV['APP_TOKEN']
-      halt 403, PLAIN_TEXT, 'unauthorized'
-    end
-    # parameters valid?
-    if params[:url].blank? || !params[:url].match(DOMAIN_REGEX)
-      halt 422, PLAIN_TEXT, 'url missing or unvalid'
-    end
-    
+class PageCrawler
+  require 'erb'
+  require 'tilt'
+  include Sidekiq::Worker
+  sidekiq_options :retry => 1, :dead => false
+  
+  def perform(url, email=nil, bcc=nil, skip=nil)
     o = {delay: 1, verbose: false, skip_query_strings: true, discard_page_bodies: true}
-    l = params[:skip].blank? || !params[:skip].match(SKIP_REGEX)
     a = []; c = 0;
-    
+  
     t = Benchmark.realtime do
-      Anemone.crawl(params[:url],o) do |anemone|
-        anemone.skip_links_like /#{l}/ unless l.nil?
+      Anemone.crawl(url,o) do |anemone|
+        anemone.skip_links_like /#{skip}/ unless skip.nil?
         anemone.on_every_page do |page|
           if !page.code.nil? and page.code == 404 and !page.url.to_s.include?('%23')
             a << {code: page.code, url: page.url, referer: page.referer}
@@ -70,18 +60,55 @@ post '/' do
         end
       end
     end
-    
-    # json and xml output possible
-    html_body = erb :html_body, locals: { array: a, pages_counter: c, url: params[:url], time: t }
-    plaintext = erb :plaintext, locals: { array: a, pages_counter: c, url: params[:url], time: t }
-    
-    # send a mail with the list of 404 pages
-    if !params[:email].blank? && params[:email].match(EMAIL_REGEX)
-      send_mail(params[:email],ENV['FROM'],"#{ENV['SUBJECT']} #{params[:url]}", plaintext, html_body)
+  
+    unless email.nil?
+      plaintext = Tilt.new('views/plaintext.erb').render(self, array: a, pages_counter: c, url: url, time: t )
+      html_body = Tilt.new('views/html_body.erb').render(self, array: a, pages_counter: c, url: url, time: t )
+      send_mail(email,ENV['FROM'],bcc,"#{ENV['SUBJECT']} #{url}", plaintext, html_body)
+    end
+  end
+  
+  def send_mail(to,from,bcc,subject,body,html_body)
+    Pony.mail(
+      to:        to,
+      from:      from,
+      bcc:       bcc,
+      subject:   subject,
+      body:      body,
+      html_body: html_body,
+      via: :smtp,
+      via_options: {
+        address:              ENV['MAILSERVER'],
+        port:                 ENV['PORT'],
+        enable_starttls_auto: true,
+        user_name:            ENV['MAILUSER'],
+        password:             ENV['MAILPDW'],
+        authentication:       :plain,
+        domain:               ENV['DOMAIN']
+      }
+    )
+  end
+end
+
+post '/' do
+  begin
+    # authorized user?
+    if params[:token].blank? || params[:token] != ENV['APP_TOKEN']
+      halt 403, PLAIN_TEXT, 'unauthorized'
+    end
+    # url parameter valid?
+    if params[:url].blank? || !params[:url].match(DOMAIN_REGEX)
+      halt 422, PLAIN_TEXT, 'url missing or unvalid'
     end
     
+    email = (!params[:email].blank? && params[:email].match(EMAIL_REGEX) ? params[:email] : nil)
+    bcc   = (!params[:bcc].blank?   && params[:bcc].match(EMAIL_REGEX)   ? params[:bcc]   : nil)
+    skip  = (!params[:skip].blank?  && params[:skip].match(SKIP_REGEX)   ? params[:skip]  : nil)
+    
+    PageCrawler.perform_async(params[:url], email, bcc, skip)
+    
     # output result to caller
-    halt 200, PLAIN_TEXT, plaintext
+    halt 200, PLAIN_TEXT, "job was queued"
     
   rescue Exception => e
     logger.warn "[broken-link-checker] Rescue: #{e.message}"
