@@ -29,4 +29,9 @@ To check `https://example.com` for 404 links and send the result to `info@exampl
 curl -i -X POST --data "token=a-secure-token&url=https://example.com/&email=info@example.com" 127.0.0.1:9292/
 ```
 
+## Todo
+
+* Add a persistance layer (mysql, etc.)
+* Add an endpoint to get crawl results 
+
 Copyright (c) 2018 Stefan Husch, qutic development.
