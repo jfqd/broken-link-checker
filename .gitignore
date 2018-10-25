@@ -2,7 +2,6 @@
 Capfile
 config/deploy.rb
 config/crontab
-Gemfile.lock
 .rvmrc
 .env*
 log/*.log
