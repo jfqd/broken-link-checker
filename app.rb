@@ -84,10 +84,10 @@ class PageCrawler
     o = {
       delay:               1,
       verbose:             false,
-      skip_query_strings:  true,
+      skip_query_strings:  false,
       discard_page_bodies: true,
-      external_redirects:  true,
-      user_agent:          "BrokenLinkChecker"
+      user_agent:          "BrokenLinkChecker",
+      scan_outgoing_external_links: true
     }
     a = []; c = 0;
   
