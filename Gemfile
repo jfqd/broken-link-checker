@@ -1,5 +1,5 @@
 source 'https://rubygems.org' do
-  ruby ">=2.5.3"
+  ruby ">=2.4.4"
 
   gem 'sinatra'
   gem 'dotenv'
