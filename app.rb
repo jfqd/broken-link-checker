@@ -81,7 +81,14 @@ class PageCrawler
   sidekiq_options :retry => 1, :dead => false
   
   def perform(url, email=nil, bcc=nil, skip=nil)
-    o = {delay: 1, verbose: false, skip_query_strings: true, discard_page_bodies: true}
+    o = {
+      delay:               1,
+      verbose:             false,
+      skip_query_strings:  true,
+      discard_page_bodies: true,
+      external_redirects:  true,
+      user_agent:          "BrokenLinkChecker"
+    }
     a = []; c = 0;
   
     t = Benchmark.realtime do
