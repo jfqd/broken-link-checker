@@ -4,7 +4,7 @@
   </head>
   <body>
     <p>
-      Crawled <%= pages_counter %> pages on <a href="<%= url %>"><%= url %></a> and found <%= array.size %> broken-links in <%= time.round(0) %>s
+      Crawled <%= pages_counter %> links on <a href="<%= url %>"><%= url %></a> and found <%= array.size %> broken-links in <%= time.round(0) %>s
     </p>
     <% if array.size > 0 %>
       <table>
