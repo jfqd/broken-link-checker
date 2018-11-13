@@ -86,6 +86,7 @@ class PageCrawler
       verbose:             false,
       skip_query_strings:  false,
       discard_page_bodies: true,
+      pages_queue_limit:   15000,
       user_agent:          "BrokenLinkChecker",
       scan_outgoing_external_links: true
     }
