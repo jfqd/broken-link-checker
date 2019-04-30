@@ -32,6 +32,7 @@ curl -i -X POST --data "token=a-secure-token&url=https://example.com/&email=info
 ## Todo
 
 * Add a persistance layer (mysql, etc.)
-* Add an endpoint to get crawl results 
+* Add an endpoint to get crawl results
+* Add an option to check images
 
 Copyright (c) 2018 Stefan Husch, qutic development.
