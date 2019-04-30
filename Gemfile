@@ -9,6 +9,6 @@ source 'https://rubygems.org' do
 
 end
 
-source 'https://gemsrv.qutic.net/' do
+source 'https://qsm01-gemsrv.qutic.net/' do
   gem 'anemone'
 end
