@@ -1,6 +1,6 @@
 GEM
   remote: https://rubygems.org/
-  remote: https://qsm01-gemsrv.qutic.net/
+  remote: https://gemsrv.qutic.net/
   specs:
     anemone (0.8.3)
       nokogiri (>= 1.6.6.2)
@@ -11,25 +11,27 @@ GEM
       mini_mime (>= 0.1.1)
     mini_mime (1.0.2)
     mini_portile2 (2.4.0)
-    mustermann (1.0.3)
-    nokogiri (1.10.5)
+    mustermann (1.1.1)
+      ruby2_keywords (~> 0.0.1)
+    nokogiri (1.10.9)
       mini_portile2 (~> 2.4.0)
     pony (1.13.1)
       mail (>= 2.0)
-    rack (2.0.7)
-    rack-protection (2.0.7)
+    rack (2.2.2)
+    rack-protection (2.0.8.1)
       rack
-    redis (4.1.3)
+    redis (4.1.4)
     robotex (1.0.0)
+    ruby2_keywords (0.0.2)
     sidekiq (5.2.7)
       connection_pool (~> 2.2, >= 2.2.2)
       rack (>= 1.5.0)
       rack-protection (>= 1.5.0)
       redis (>= 3.3.5, < 5)
-    sinatra (2.0.7)
+    sinatra (2.0.8.1)
       mustermann (~> 1.0)
       rack (~> 2.0)
-      rack-protection (= 2.0.7)
+      rack-protection (= 2.0.8.1)
       tilt (~> 2.0)
     tilt (2.0.10)
 
