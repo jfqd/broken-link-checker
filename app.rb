@@ -9,6 +9,7 @@ require 'sidekiq'
 require 'nokogiri'
 require 'net/http'
 
+URI_REGEX    = /\Ahttp(s)?:\/\/[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,5}(([0-9]{1,5})?\/.*)?\z/i
 DOMAIN_REGEX = /\A[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,5}(([0-9]{1,5})?\/.*)?\z/i
 EMAIL_REGEX  = /\A[A-Za-z0-9\-\+\_\.]+\@(\.[A-Za-z0-9\-\+\_]+)*(([a-z0-9]([-a-z0-9]*[a-z0-9])?\.){1,4})([a-z]{2,15})\z/i
 SKIP_REGEX   = /^[(A-Za-z0-9\\\-\(\)\|]*$/
@@ -36,7 +37,7 @@ post '/' do
       halt 403, PLAIN_TEXT, "unauthorized\n"
     end
     # url parameter valid?
-    if params[:url].blank? || !params[:url].match(DOMAIN_REGEX)
+    if params[:url].blank? || !params[:url].match(URI_REGEX)
       halt 422, PLAIN_TEXT, "url missing or unvalid\n"
     end
     
