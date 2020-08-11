@@ -6,10 +6,10 @@ Crawled <%= pages_counter %> pages on <%= url %> and found <%= array.size %> bro
 <%= "[#{a[:code]}] #{a[:url]}, Referer: #{a[:referer]} \n" %>
 <% end if array.size > 0 %>
 
-<% if images.size > 0 -%>
+<% if images.size > 0 %>
 Crawled <%= pages_counter %> pages on <%= url %> and found <%= images.size %> broken images in <%= time[:links].round(0) %>s
 
 <% images.each do |i| %>
 <%= "[#{i[:code]}] #{i[:url]}, Referer: #{i[:referer]} \n" %>
 <% end %>
-<% end -%>
+<% end %>
