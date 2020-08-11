@@ -29,10 +29,10 @@
     <% else %>
       <p>Congratulations! Nothing to do!</p>
     <% end %>
+    <p>
+      Crawled <%= pages_counter %> pages on <a href="<%= url %>"><%= url %></a> and found <%= images.size %> broken images in <%= time[:images].round(0) %>s
+    </p>
     <% if images.size > 0 %>
-      <p>
-        Crawled <%= pages_counter %> pages on <a href="<%= url %>"><%= url %></a> and found <%= images.size %> broken images in <%= time[:images].round(0) %>s
-      </p>
       <table>
         <thead>
           <tr>
