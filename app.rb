@@ -126,7 +126,7 @@ class PageCrawler
           u = i.start_with?("http") ? i : "#{url}#{i}"
           # only process images on own site and skip images
           # on unwanted sites like webanalytic pixels
-          if u.include?(url) && !u.include?(skip_domain)
+          if u.include?(url) && h[:page].to_s.include?(url) && !u.include?(skip_domain)
             uri = URI.parse u
             http = Net::HTTP.new(uri.host, uri.port)
             http.use_ssl = u.start_with?("https")
