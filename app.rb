@@ -6,8 +6,10 @@ require 'anemone'
 require 'benchmark'
 require 'pony'
 require 'sidekiq'
+require 'nokogiri'
+require 'net/http'
 
-DOMAIN_REGEX = /\Ahttp(s)?:\/\/[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,5}(([0-9]{1,5})?\/.*)?\z/i
+DOMAIN_REGEX = /\A[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,5}(([0-9]{1,5})?\/.*)?\z/i
 EMAIL_REGEX  = /\A[A-Za-z0-9\-\+\_\.]+\@(\.[A-Za-z0-9\-\+\_]+)*(([a-z0-9]([-a-z0-9]*[a-z0-9])?\.){1,4})([a-z]{2,15})\z/i
 SKIP_REGEX   = /^[(A-Za-z0-9\\\-\(\)\|]*$/
 PLAIN_TEXT   = {'Content-Type' => 'text/plain'}
@@ -40,9 +42,10 @@ post '/' do
     
     PageCrawler.perform_async(
       params[:url],
-      validate(params[:email],EMAIL_REGEX),
-      validate(params[:bcc],  EMAIL_REGEX),
-      validate(params[:skip], SKIP_REGEX)
+      validate(params[:email], EMAIL_REGEX),
+      validate(params[:bcc], EMAIL_REGEX),
+      validate(params[:skip_pages], SKIP_REGEX),
+      validate(params[:skip_domain], DOMAIN_REGEX)
     )
     
     # output result to caller
@@ -80,7 +83,7 @@ class PageCrawler
   include Sidekiq::Worker
   sidekiq_options :retry => 1, :dead => false
   
-  def perform(url, email=nil, bcc=nil, skip=nil)
+  def perform(url, email=nil, bcc=nil, skip_pages="", skip_domain="")
     o = {
       delay:               1,
       verbose:             false,
@@ -88,27 +91,67 @@ class PageCrawler
       discard_page_bodies: true,
       pages_queue_limit:   15000,
       user_agent:          "BrokenLinkChecker",
-      scan_outgoing_external_links: true
+      scan_outgoing_external_links: true,
+      scan_images:         true
     }
-    a = []; c = 0;
+    a = []; images = []; img = []; c = 0;
   
-    t = Benchmark.realtime do
+    t1 = Benchmark.realtime do
       Anemone.crawl(url,o) do |anemone|
-        anemone.skip_links_like /#{skip}/ unless skip.nil?
+        anemone.skip_links_like /#{skip_pages}/ unless skip_pages.blank?
         anemone.on_every_page do |page|
+          # collect 404 pages
           if !page.code.nil? and page.code == 404 and !page.url.to_s.include?('%23')
             a << {code: page.code, url: page.url, referer: page.referer}
+          end
+          # collect image-urls
+          if o[:scan_images] == true
+            begin
+              html = page.doc.to_s
+              images << {page: page.url, images: fetch_image_src(html) } if html != nil && html != ""
+            rescue
+              # do nothing
+            end
           end
           c += 1
         end
       end
     end
-  
+    
+    # collect 404 images
+    t2 = Benchmark.realtime do
+      images.each do |h|
+        h[:images].each do |i|
+          u = i.start_with?("http") ? i : "#{url}#{i}"
+          # only process images on own site and skip images
+          # on unwanted sites like webanalytic pixels
+          if u.include?(url) && !u.include?(skip_domain)
+            uri = URI.parse u
+            http = Net::HTTP.new(uri.host, uri.port)
+            http.use_ssl = u.start_with?("https")
+            r = http.head(uri.request_uri)
+            if !r.code.nil? and r.code.to_i == 404
+              img << {code: r.code, url: u, referer: h[:page]}
+            end
+          end
+        end
+      end if images != nil && images != []
+    end
+    
+    # send email
     unless email.nil?
-      plaintext = Tilt.new('views/plaintext.erb').render(self, array: a, pages_counter: c, url: url, time: t )
-      html_body = Tilt.new('views/html_body.erb').render(self, array: a, pages_counter: c, url: url, time: t )
+      plaintext = Tilt.new('views/plaintext.erb').render(self, array: a, pages_counter: c, url: url, images: img, time: {links: t1, images: t2})
+      html_body = Tilt.new('views/html_body.erb').render(self, array: a, pages_counter: c, url: url, images: img, time: {links: t1, images: t2})
       send_mail(email,ENV['FROM'],bcc,"#{ENV['SUBJECT']} #{url}", plaintext, html_body)
     end
+  end
+  
+  def fetch_image_src(html)
+    html_doc = Nokogiri::HTML(html)
+    nodes = html_doc.xpath("//img[@src]")
+    nodes.inject([]) do |uris, node|
+      uris << node.attr('src').strip
+    end.uniq
   end
   
   def send_mail(to,from,bcc,subject,body,html_body)
