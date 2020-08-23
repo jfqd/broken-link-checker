@@ -15,18 +15,48 @@ EMAIL_REGEX  = /\A[A-Za-z0-9\-\+\_\.]+\@(\.[A-Za-z0-9\-\+\_]+)*(([a-z0-9]([-a-z0
 SKIP_REGEX   = /^[(A-Za-z0-9\\\-\(\)\|]*$/
 PLAIN_TEXT   = {'Content-Type' => 'text/plain'}
 
+def get_redis_config
+  if ENV['SENTINEL_MASTER'].present?
+    {
+      host: ENV['SENTINEL_MASTER'],
+      sentinels: [
+        { host: ENV['SENTINEL1'], port: ENV['SENTINEL_PORT'], password: ENV['REDIS_PWD'] },
+        { host: ENV['SENTINEL2'], port: ENV['SENTINEL_PORT'], password: ENV['REDIS_PWD'] },
+        { host: ENV['SENTINEL3'], port: ENV['SENTINEL_PORT'], password: ENV['REDIS_PWD'] }
+      ],
+      role: :master,
+      password: ENV['REDIS_PWD'],
+      db: ENV['REDIS_DATABASE'],
+      connect_timeout: 0.2,
+      read_timeout: 1.0,
+      write_timeout: 0.5,
+      reconnect_attempts: 10,
+      reconnect_delay: 0.5,
+      reconnect_delay_max: 2.0,
+      ssl: true,
+      ssl_params: {
+        ca_file: ENV['CA_FILE'],
+        ssl_version: "TLSv1_2",
+        verify_mode: OpenSSL::SSL::VERIFY_NONE
+      }
+    }
+  else
+    { url: "redis://#{ENV['REDIS_SERVER']}:#{ENV['REDIS_PORT']}/#{ENV['REDIS_DATABASE']}" }
+  end
+end
+
 configure do
   # http://recipes.sinatrarb.com/p/middleware/rack_commonlogger
   file = File.new("#{settings.root}/log/#{settings.environment}.log", 'a+')
   file.sync = true
   use Rack::CommonLogger, file
-  
+    
   Sidekiq.configure_server do |config|
-    config.redis = { url: "redis://#{ENV['REDIS_SERVER']}:#{ENV['REDIS_PORT']}/#{ENV['REDIS_DATABASE']}" }
+    config.redis = get_redis_config
   end
 
   Sidekiq.configure_client do |config|
-    config.redis = { url: "redis://#{ENV['REDIS_SERVER']}:#{ENV['REDIS_PORT']}/#{ENV['REDIS_DATABASE']}" }
+    config.redis = get_redis_config
   end
 end
 
