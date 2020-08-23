@@ -16,7 +16,7 @@ SKIP_REGEX   = /^[(A-Za-z0-9\\\-\(\)\|]*$/
 PLAIN_TEXT   = {'Content-Type' => 'text/plain'}
 
 def get_redis_config
-  if ENV['SENTINEL_MASTER'].present?
+  if ENV['SENTINEL_MASTER'] != nil && ENV['SENTINEL_MASTER'] != ""
     {
       host: ENV['SENTINEL_MASTER'],
       sentinels: [
