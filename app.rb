@@ -77,7 +77,7 @@ post '/' do
       validate(params[:bcc], EMAIL_REGEX),
       validate(params[:skip_pages], SKIP_REGEX),
       validate(params[:skip_domain], DOMAIN_REGEX),
-      validate(params[:skip_images, SKIP_REGEX)
+      validate(params[:skip_images], SKIP_REGEX)
     )
     
     # output result to caller
