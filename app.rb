@@ -76,7 +76,8 @@ post '/' do
       validate(params[:email], EMAIL_REGEX),
       validate(params[:bcc], EMAIL_REGEX),
       validate(params[:skip_pages], SKIP_REGEX),
-      validate(params[:skip_domain], DOMAIN_REGEX)
+      validate(params[:skip_domain], DOMAIN_REGEX),
+      validate(params[:skip_images, SKIP_REGEX)
     )
     
     # output result to caller
@@ -114,7 +115,7 @@ class PageCrawler
   include Sidekiq::Worker
   sidekiq_options :retry => 1, :dead => false
   
-  def perform(url, email=nil, bcc=nil, skip_pages="", skip_domain="")
+  def perform(url, email=nil, bcc=nil, skip_pages="", skip_domain="", skip_images="false")
     o = {
       delay:               1,
       verbose:             false,
@@ -123,7 +124,7 @@ class PageCrawler
       pages_queue_limit:   15000,
       user_agent:          "BrokenLinkChecker",
       scan_outgoing_external_links: true,
-      scan_images:         true
+      scan_images:         (skip_images == "false" ? true : false)
     }
     a = []; images = []; img = []; c = 0;
   
