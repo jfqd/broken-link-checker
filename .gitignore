@@ -9,3 +9,5 @@ doc
 tmp
 .bundle
 .rsync_cache
+.rbenv-gemsets
+.ruby-version
